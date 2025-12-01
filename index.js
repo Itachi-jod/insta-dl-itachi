@@ -1,47 +1,83 @@
+const express = require("express");
 const axios = require("axios");
+const cors = require("cors");
 
-// Helper to send pretty JSON
-function sendPretty(res, data, status = 200) {
-  res.setHeader("Content-Type", "application/json");
-  res.statusCode = status;
-  res.end(JSON.stringify(data, null, 2)); // 2-space indentation
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Pretty Print helper
+function pretty(obj) {
+  return JSON.stringify(obj, null, 2);
 }
 
-module.exports = async (req, res) => {
-  if (req.method !== "GET") {
-    return sendPretty(res, { success: false, message: "Method not allowed", author: "ItachiXD" }, 405);
-  }
+// Root endpoint
+app.get("/", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(
+    pretty({
+      author: "ItachiXD",
+      status: "Instagram Downloader API Running...",
+      usage: "/api/download?url=<INSTAGRAM_URL>"
+    })
+  );
+});
 
-  const url = req.query.url;
-  if (!url) {
-    return sendPretty(res, { success: false, message: "Missing ?url=", author: "ItachiXD" }, 400);
+// Download endpoint
+app.get("/api/download", async (req, res) => {
+  const videoUrl = req.query.url;
+
+  if (!videoUrl) {
+    res.setHeader("Content-Type", "application/json");
+    return res.status(400).send(
+      pretty({
+        author: "ItachiXD",
+        success: false,
+        error: "Missing ?url="
+      })
+    );
   }
 
   try {
-    const apiUrl = `https://alin-one-downloader-9nly.vercel.app/api/reels%20Downloader?url=${encodeURIComponent(url)}`;
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/plain, */*",
+      "User-Agent":
+        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
+      Origin: "https://downloady.vercel.app",
+      Referer: "https://downloady.vercel.app/",
+      "Sec-Fetch-Site": "same-origin",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Dest": "empty",
+    };
 
-    const response = await axios.get(apiUrl, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
-        Referer: "https://alin-one-downloader-9nly.vercel.app/",
-        Origin: "https://alin-one-downloader-9nly.vercel.app"
-      },
-      timeout: 20000
-    });
+    // Call the upstream Instagram downloader API
+    const apiRes = await axios.post(
+      "https://downloady.vercel.app/api/initiate-download",
+      { url: videoUrl },
+      { headers }
+    );
 
-    return sendPretty(res, {
-      success: true,
-      author: "ItachiXD",
-      data: response.data
-    });
+    res.setHeader("Content-Type", "application/json");
+    return res.send(
+      pretty({
+        author: "ItachiXD",
+        success: true,
+        data: apiRes.data
+      })
+    );
   } catch (err) {
-    return sendPretty(res, {
-      success: false,
-      author: "ItachiXD",
-      message: "Upstream API failed",
-      error: err.message,
-      details: err.response?.data || null
-    }, 500);
+    console.error("Backend error:", err.response?.data || err.message);
+    res.setHeader("Content-Type", "application/json");
+    return res.status(500).send(
+      pretty({
+        author: "ItachiXD",
+        success: false,
+        error: "Failed to process the request",
+        details: err.response?.data || err.message
+      })
+    );
   }
-};
+});
+
+module.exports = app;
