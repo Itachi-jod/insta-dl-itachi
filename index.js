@@ -1,13 +1,21 @@
 const axios = require("axios");
 
+// -------------------------------------
 // Pretty Print helper
+// -------------------------------------
 function pretty(obj) {
   return JSON.stringify(obj, null, 2);
 }
 
 module.exports = async function (req, res) {
+  // Force JSON output
+  res.setHeader("Content-Type", "application/json");
+
   const url = req.query.url;
 
+  // -------------------------------------
+  // Missing URL Parameter
+  // -------------------------------------
   if (!url) {
     return res.status(400).send(
       pretty({
@@ -19,10 +27,16 @@ module.exports = async function (req, res) {
   }
 
   try {
-    const apiURL = `https://reelsaver.vercel.app/api/video?postUrl=${encodeURIComponent(url)}`;
+    // Instagram API
+    const apiURL = `https://reelsaver.vercel.app/api/video?postUrl=${encodeURIComponent(
+      url
+    )}`;
 
     const response = await axios.get(apiURL);
 
+    // -------------------------------------
+    // Success Response
+    // -------------------------------------
     return res.status(200).send(
       pretty({
         author: "ItachiXD",
@@ -34,6 +48,9 @@ module.exports = async function (req, res) {
   } catch (err) {
     console.error("Download error:", err.response?.data || err.message);
 
+    // -------------------------------------
+    // Error Response (Pretty)
+    // -------------------------------------
     return res.status(500).send(
       pretty({
         author: "ItachiXD",
