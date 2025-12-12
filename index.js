@@ -1,83 +1,46 @@
-const express = require("express");
 const axios = require("axios");
-const cors = require("cors");
-
-const app = express();
-app.use(cors());
-app.use(express.json());
 
 // Pretty Print helper
 function pretty(obj) {
   return JSON.stringify(obj, null, 2);
 }
 
-// Root endpoint
-app.get("/", (req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  res.send(
-    pretty({
-      author: "ItachiXD",
-      status: "Instagram Downloader API Running...",
-      usage: "/api/download?url=<INSTAGRAM_URL>"
-    })
-  );
-});
+module.exports = async function (req, res) {
+  const url = req.query.url;
 
-// Download endpoint
-app.get("/api/download", async (req, res) => {
-  const videoUrl = req.query.url;
-
-  if (!videoUrl) {
-    res.setHeader("Content-Type", "application/json");
+  if (!url) {
     return res.status(400).send(
       pretty({
         author: "ItachiXD",
         success: false,
-        error: "Missing ?url="
+        message: "Missing ?url parameter"
       })
     );
   }
 
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Accept: "application/json, text/plain, */*",
-      "User-Agent":
-        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36",
-      Origin: "https://downloady.vercel.app",
-      Referer: "https://downloady.vercel.app/",
-      "Sec-Fetch-Site": "same-origin",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Dest": "empty",
-    };
+    const apiURL = `https://reelsaver.vercel.app/api/video?postUrl=${encodeURIComponent(url)}`;
 
-    // Call the upstream Instagram downloader API
-    const apiRes = await axios.post(
-      "https://downloady.vercel.app/api/initiate-download",
-      { url: videoUrl },
-      { headers }
-    );
+    const response = await axios.get(apiURL);
 
-    res.setHeader("Content-Type", "application/json");
-    return res.send(
+    return res.status(200).send(
       pretty({
         author: "ItachiXD",
         success: true,
-        data: apiRes.data
+        platform: "Instagram",
+        data: response.data.result || response.data
       })
     );
   } catch (err) {
-    console.error("Backend error:", err.response?.data || err.message);
-    res.setHeader("Content-Type", "application/json");
+    console.error("Download error:", err.response?.data || err.message);
+
     return res.status(500).send(
       pretty({
         author: "ItachiXD",
         success: false,
-        error: "Failed to process the request",
+        message: "Failed to fetch Instagram Post/Reel",
         details: err.response?.data || err.message
       })
     );
   }
-});
-
-module.exports = app;
+};
